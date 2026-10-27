@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unduh Foto - AM Street Photobooth</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        h1, h2, h3, .font-heading { font-family: 'Outfit', sans-serif; }
+
+        @keyframes floatSlow {
+            0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+            50% { transform: translate3d(20px, -25px, 0) rotate(8deg); }
+        }
+        @keyframes floatMedium {
+            0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+            50% { transform: translate3d(-20px, -30px, 0) rotate(-10deg); }
+        }
+        .floating-logo {
+            position: absolute;
+            pointer-events: none;
+            user-select: none;
+            mix-blend-mode: screen;
+            will-change: transform;
+        }
+        .anim-slow { animation: floatSlow 16s ease-in-out infinite; }
+        .anim-mid { animation: floatMedium 12s ease-in-out -4s infinite; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-black via-zinc-950 to-neutral-950 min-h-screen text-slate-100 flex flex-col justify-between p-4 sm:p-6 selection:bg-white selection:text-black relative overflow-x-hidden">
+
+    <!-- Floating Background Blurred Logos -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <img src="assets/logo_am.png" class="floating-logo anim-slow w-60 opacity-[0.08] blur-[8px]" style="top: -5%; left: -10%;">
+        <img src="assets/logo_am.png" class="floating-logo anim-mid w-44 opacity-[0.10] blur-[4px]" style="top: 15%; right: -5%;">
+        <img src="assets/logo_am.png" class="floating-logo anim-slow w-72 opacity-[0.06] blur-[12px]" style="bottom: 5%; left: 5%;">
+        <img src="assets/logo_am.png" class="floating-logo anim-mid w-40 opacity-[0.09] blur-[3px]" style="bottom: 20%; right: 5%;">
+    </div>
+
+    <!-- Header -->
+    <header class="w-full max-w-md mx-auto text-center py-4 space-y-2 relative z-10">
+        <div class="inline-flex items-center space-x-2 bg-white/10 border border-white/20 px-3.5 py-1 rounded-full">
+            <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+            <span class="text-xs font-black tracking-widest text-white uppercase">AM Street Photobooth Cloud</span>
+        </div>
+        <h1 class="text-2xl font-black text-white font-heading tracking-tight uppercase">Foto Kamu Siap! ✨</h1>
+        <p class="text-xs text-zinc-400">Simpan momen street photobooth langsung ke galeri HP dengan resolusi tinggi.</p>
+    </header>
+
+    <!-- Konten Utama: Preview Foto -->
+    <main class="w-full max-w-md mx-auto my-auto flex flex-col items-center space-y-5 relative z-10">
+        <div id="imageCard" class="relative w-full max-w-xs bg-black/60 border border-white/20 p-3 rounded-2xl shadow-2xl backdrop-blur-xl">
+            <div id="loadingPlaceholder" class="aspect-[2/3] w-full flex flex-col items-center justify-center space-y-3 bg-neutral-900 rounded-xl">
+                <i class="fa-solid fa-circle-notch fa-spin text-white text-3xl"></i>
+                <p class="text-xs text-zinc-400">Memuat foto resolusi tinggi...</p>
+            </div>
+            <img id="photoImg" src="" alt="Photobooth Snap" class="w-full rounded-xl shadow-lg hidden object-contain">
+        </div>
+
+        <!-- Tombol Aksi Download & Share (Monochrome) -->
+        <div class="w-full max-w-xs space-y-3">
+            <a id="downloadBtn" href="#" download="AM_Street_Photobooth.jpg" class="w-full py-4 bg-white hover:bg-zinc-200 text-black font-black rounded-2xl shadow-lg shadow-white/10 flex items-center justify-center space-x-2 text-sm transition transform active:scale-95 tracking-wide">
+                <i class="fa-solid fa-cloud-arrow-down text-lg"></i>
+                <span>Simpan ke Galeri HP (.JPG)</span>
+            </a>
+
+            <button id="shareBtn" onclick="sharePhoto()" class="w-full py-3.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold rounded-2xl text-xs flex items-center justify-center space-x-2 transition">
+                <i class="fa-solid fa-share-nodes text-white"></i>
+                <span>Bagikan (WhatsApp / IG Story)</span>
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full max-w-md mx-auto text-center py-4 text-[11px] text-zinc-500 border-t border-white/10 mt-6">
+        <p>© 2026 AM Street Photobooth System • Urban Edition</p>
+    </footer>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const photoId = urlParams.get('id');
+
+        const photoImg = document.getElementById('photoImg');
+        const loadingPlaceholder = document.getElementById('loadingPlaceholder');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        if (photoId) {
+            const photoUrl = `/photos/${photoId}.jpg`;
+            photoImg.src = photoUrl;
+            downloadBtn.href = photoUrl;
+            downloadBtn.download = `${photoId}.jpg`;
+
+            photoImg.onload = () => {
+                loadingPlaceholder.classList.add('hidden');
+                photoImg.classList.remove('hidden');
+            };
+            photoImg.onerror = () => {
+                loadingPlaceholder.innerHTML = `
+                    <div class="p-4 text-center space-y-2">
+                        <i class="fa-solid fa-triangle-exclamation text-white text-3xl"></i>
+                        <p class="text-xs text-white font-semibold">Foto Tidak Ditemukan</p>
+                        <p class="text-[10px] text-zinc-400">Pastikan ID foto valid atau coba ambil foto baru di booth.</p>
+                    </div>
+                `;
+            };
+        } else {
+            loadingPlaceholder.innerHTML = `
+                <div class="p-4 text-center space-y-2">
+                    <i class="fa-solid fa-camera text-white text-3xl"></i>
+                    <p class="text-xs text-white font-semibold">Tidak Ada Foto Terpilih</p>
+                    <p class="text-[10px] text-zinc-400">Scan QR Code dari layar photobooth setelah sesi pemotretan.</p>
+                </div>
+            `;
+        }
+
+        async function sharePhoto() {
+            if (navigator.share && photoImg.src) {
+                try {
+                    await navigator.share({
+                        title: 'AM Street Photobooth',
+                        text: 'Hasil foto AM Street Photobooth! 📸✨',
+                        url: window.location.href
+                    });
+                } catch (e) {
+                    console.log('Share dismissed');
+                }
+            } else {
+                navigator.clipboard.writeText(window.location.href);
+                alert('Tautan foto berhasil disalin ke clipboard!');
+            }
+        }
+    </script>
+</body>
+</html>

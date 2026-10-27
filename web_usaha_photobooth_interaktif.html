@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AM Street Photobooth - Urban Photo Kiosk</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 6 Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- QRCode.js (Offline local library) -->
+    <script src="qrcode.min.js"></script>
+    
+    <style>
+        :root {
+            --font-main: 'Plus Jakarta Sans', sans-serif;
+            --font-heading: 'Outfit', sans-serif;
+        }
+        body {
+            font-family: var(--font-main);
+            user-select: none;
+            -webkit-user-select: none;
+            transition: background 0.4s ease;
+        }
+        h1, h2, h3, .font-heading {
+            font-family: var(--font-heading);
+        }
+
+        /* Floating Blurred Logo Animation */
+        @keyframes floatSlow {
+            0%, 100% {
+                transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+            }
+            33% {
+                transform: translate3d(25px, -35px, 0) rotate(8deg) scale(1.05);
+            }
+            66% {
+                transform: translate3d(-20px, 25px, 0) rotate(-6deg) scale(0.96);
+            }
+        }
+
+        @keyframes floatMedium {
+            0%, 100% {
+                transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+            }
+            50% {
+                transform: translate3d(-30px, -45px, 0) rotate(-12deg) scale(1.08);
+            }
+        }
+
+        @keyframes floatDrift {
+            0%, 100% {
+                transform: translate3d(0, 0, 0) rotate(0deg);
+            }
+            25% {
+                transform: translate3d(-35px, 20px, 0) rotate(10deg);
+            }
+            75% {
+                transform: translate3d(30px, -30px, 0) rotate(-8deg);
+            }
+        }
+
+        .floating-logo {
+            position: absolute;
+            pointer-events: none;
+            user-select: none;
+            mix-blend-mode: screen;
+            will-change: transform;
+        }
+
+        .anim-slow-1 { animation: floatSlow 18s ease-in-out infinite; }
+        .anim-slow-2 { animation: floatSlow 24s ease-in-out -7s infinite; }
+        .anim-slow-3 { animation: floatSlow 28s ease-in-out -12s infinite; }
+
+        .anim-mid-1  { animation: floatMedium 14s ease-in-out -3s infinite; }
+        .anim-mid-2  { animation: floatMedium 19s ease-in-out -9s infinite; }
+        .anim-mid-3  { animation: floatMedium 22s ease-in-out -15s infinite; }
+
+        .anim-drift-1 { animation: floatDrift 20s ease-in-out -5s infinite; }
+        .anim-drift-2 { animation: floatDrift 26s ease-in-out -11s infinite; }
+        .anim-drift-3 { animation: floatDrift 30s ease-in-out -17s infinite; }
+
+        /* Camera Flash Animation */
+        #flashOverlay.flash-active {
+            opacity: 1 !important;
+            transition: none !important;
+        }
+
+        /* Mirror Mode */
+        .mirror-video {
+            transform: scaleX(-1);
+        }
+
+        /* Rule of Thirds Grid */
+        .grid-guide {
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.2) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.2) 1px, transparent 1px);
+            background-size: 33.333% 33.333%;
+        }
+
+        /* Direct Print Styling for Photo Printers (4x6" and 2x6" strips) */
+        @media print {
+            body * {
+                visibility: hidden !important;
+            }
+            #printContainer, #printContainer * {
+                visibility: visible !important;
+            }
+            #printContainer {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            #printCanvas {
+                max-width: 100% !important;
+                max-height: 100% !important;
+                object-fit: contain !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+            }
+            @page {
+                size: auto;
+                margin: 0mm;
+            }
+        }
+    </style>
+</head>
+<body id="bodyContainer" class="bg-gradient-to-br from-black via-zinc-950 to-neutral-950 min-h-screen text-slate-100 flex flex-col justify-between overflow-x-hidden selection:bg-white selection:text-black bg-cover bg-center relative">
+
+    <!-- Animated Floating & Blurred Background Logos -->
+    <div id="floatingLogosBg" class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <!-- Logo 1: Top Left - Large Bokeh Blur -->
+        <img src="assets/logo_am.png" class="floating-logo anim-slow-1 w-72 md:w-96 opacity-[0.08] blur-[10px]" style="top: -5%; left: -5%;">
+        
+        <!-- Logo 2: Top Right - Medium Soft Blur -->
+        <img src="assets/logo_am.png" class="floating-logo anim-mid-1 w-48 md:w-64 opacity-[0.10] blur-[5px]" style="top: 6%; right: 3%;">
+
+        <!-- Logo 3: Center Left - Small Subtle Float -->
+        <img src="assets/logo_am.png" class="floating-logo anim-drift-1 w-36 md:w-44 opacity-[0.12] blur-[2px]" style="top: 36%; left: 5%;">
+
+        <!-- Logo 4: Center Right - Large Deep Bokeh Blur -->
+        <img src="assets/logo_am.png" class="floating-logo anim-slow-2 w-80 md:w-[26rem] opacity-[0.07] blur-[14px]" style="top: 40%; right: -6%;">
+
+        <!-- Logo 5: Bottom Left - Medium Soft Blur -->
+        <img src="assets/logo_am.png" class="floating-logo anim-mid-2 w-52 md:w-64 opacity-[0.09] blur-[6px]" style="bottom: 4%; left: 3%;">
+
+        <!-- Logo 6: Bottom Right - Small Crisp/Light Blur -->
+        <img src="assets/logo_am.png" class="floating-logo anim-drift-2 w-40 md:w-48 opacity-[0.11] blur-[3px]" style="bottom: 8%; right: 12%;">
+
+        <!-- Logo 7: Center Ambient Floating Behind Hero -->
+        <img src="assets/logo_am.png" class="floating-logo anim-slow-3 w-64 md:w-80 opacity-[0.06] blur-[12px]" style="top: 20%; left: 42%;">
+
+        <!-- Logo 8: Top Center Subtle Float -->
+        <img src="assets/logo_am.png" class="floating-logo anim-mid-3 w-32 md:w-40 opacity-[0.10] blur-[3px]" style="top: 2%; left: 28%;">
+
+        <!-- Logo 9: Bottom Center Ambient Float -->
+        <img src="assets/logo_am.png" class="floating-logo anim-drift-3 w-56 md:w-72 opacity-[0.07] blur-[8px]" style="bottom: -2%; left: 36%;">
+    </div>
+
+    <!-- Flash Screen Effect for Real Camera Snap -->
+    <div id="flashOverlay" class="fixed inset-0 bg-white pointer-events-none opacity-0 transition-opacity duration-300 z-50"></div>
+
+    <!-- Header / Top Bar (Hitam & Putih Identity) -->
+    <header class="w-full py-3.5 px-6 flex justify-between items-center bg-black/70 backdrop-blur-xl border-b border-white/15 sticky top-0 z-40">
+        <div class="flex items-center space-x-3.5 cursor-pointer" onclick="goToScreen('screenHome')">
+            <!-- Monochrome AM Projects Logo Badge -->
+            <div class="bg-black border border-white/30 p-1.5 rounded-2xl shadow-xl shadow-white/5 flex items-center justify-center">
+                <img src="assets/logo_am.png" alt="AM Projects" class="w-8 h-8 object-contain">
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <h1 class="font-black text-lg tracking-wider text-white font-heading uppercase">AM Street Photobooth</h1>
+                    <span class="text-[10px] bg-white text-black px-2.5 py-0.5 rounded-full font-black tracking-widest uppercase">PRO KIOSK</span>
+                </div>
+                <p class="text-[11px] text-zinc-400 font-medium tracking-wide">Urban Street Photobooth System</p>
+            </div>
+        </div>
+
+        <!-- Quick Controls (Audio, Fullscreen, Session Status) -->
+        <div class="flex items-center space-x-3 text-xs">
+            <!-- Audio Mute Toggle -->
+            <button onclick="toggleAudio()" id="audioToggleBtn" title="Suara Efek Shutter & Countdown" class="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 transition flex items-center space-x-1.5">
+                <i id="audioIcon" class="fa-solid fa-volume-high text-white"></i>
+                <span class="hidden sm:inline text-[11px] font-semibold" id="audioText">Suara Aktif</span>
+            </button>
+
+            <!-- Fullscreen Kiosk Mode Toggle -->
+            <button onclick="toggleFullscreen()" title="Mode Layar Penuh (Kiosk)" class="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 transition flex items-center space-x-1.5">
+                <i id="fullscreenIcon" class="fa-solid fa-expand text-white"></i>
+                <span class="hidden sm:inline text-[11px] font-semibold">Layar Penuh</span>
+            </button>
+
+            <!-- Status Session Pill -->
+            <div id="sessionIndicator" class="hidden bg-white/10 text-white border border-white/20 px-3 py-1.5 rounded-full items-center space-x-2 font-semibold text-[11px]">
+                <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                <span id="sessionStatusText">Sesi Aktif</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Screens Container -->
+    <main class="flex-grow flex items-center justify-center p-3 sm:p-6 md:p-8 relative z-10">
+
+        <!-- ============================================== -->
+        <!-- 1. TAMPILAN AWAL (WELCOME / HOME SCREEN) -->
+        <!-- ============================================== -->
+        <section id="screenHome" class="w-full max-w-4xl mx-auto text-center space-y-7 py-6 animate-fadeIn">
+            <!-- Banner Pill -->
+            <div class="inline-flex items-center space-x-2 bg-white/10 border border-white/20 px-4 py-1.5 rounded-full backdrop-blur-md">
+                <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                <span class="text-xs font-black text-white tracking-widest uppercase">AM STREET PHOTOBOOTH • URBAN EDITION</span>
+            </div>
+
+            <!-- Big Title -->
+            <div class="space-y-4 max-w-2xl mx-auto">
+                <h2 class="text-4xl sm:text-6xl font-black text-white leading-tight font-heading tracking-tight">
+                    Capture Your Moment <br>
+                    <span class="bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent">Anywhere</span>
+                </h2>
+                <p class="text-sm sm:text-base text-zinc-300 max-w-lg mx-auto">
+                    Kombinasi gaya street modern dengan hasil foto resolusi tinggi. Pilih template frame, ambil pose terbaikmu, dan dapatkan cetakan instan serta unduhan QR Code langsung ke HP!
+                </p>
+            </div>            <!-- Tombol Mulai Utama -->
+            <div class="pt-2 flex items-center justify-center">
+                <button onclick="goToScreen('screenFrames')" class="group relative px-12 py-5 bg-white text-black hover:bg-zinc-200 font-black rounded-3xl shadow-2xl shadow-white/20 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center space-x-3 text-xl tracking-wide">
+                    <span class="p-2 bg-black text-white rounded-full group-hover:rotate-12 transition">
+                        <i class="fa-solid fa-play"></i>
+                    </span>
+                    <span>MULAI PHOTOBOOTH</span>
+                    <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- 2. PEMILIHAN FRAME & UPLOAD FRAME BARU -->
+        <!-- ============================================== -->
+        <section id="screenFrames" class="hidden w-full max-w-5xl mx-auto space-y-6 animate-fadeIn">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-zinc-400">Langkah 1 dari 3</span>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white font-heading">Pilih Template Frame</h2>
+                    <p class="text-xs sm:text-sm text-zinc-300">Pilih template layout frame atau upload desain frame kustom (.PNG) Anda.</p>
+                </div>
+                <button onclick="goToScreen('screenHome')" class="self-start sm:self-auto px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-xl border border-white/20 transition flex items-center space-x-2">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Kembali</span>
+                </button>
+            </div>
+
+            <!-- Kategori Tab & Tombol Tambah Frame -->
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/15 pb-3">
+                <div class="flex space-x-2">
+                    <button onclick="filterFrames('all')" id="tab_all" class="px-4 py-2 bg-white text-black rounded-xl text-xs font-black shadow-lg transition">Semua Template</button>
+                    <button onclick="filterFrames('2R')" id="tab_2R" class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold transition">Photo Strip 2R (Street)</button>
+                    <button onclick="filterFrames('4R')" id="tab_4R" class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold transition">Grid 4R Standar</button>
+                </div>
+
+                <!-- Tombol Tambah / Upload Desain Frame Baru -->
+                <button onclick="openUploadFrameModal()" class="px-5 py-2.5 bg-white/10 hover:bg-white hover:text-black border border-white/30 text-white rounded-xl text-xs font-bold transition flex items-center space-x-2 shadow-lg">
+                    <i class="fa-solid fa-plus-circle text-sm"></i>
+                    <span>Tambah / Upload Desain Frame (.PNG)</span>
+                </button>
+            </div>
+
+            <!-- Grid Kartu Template Frame -->
+            <div id="frameGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
+                <!-- Diisi dinamis via JS -->
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- 3. STUDIO SHOOTING / KAMERA LIVE -->
+        <!-- ============================================== -->
+        <section id="screenCapture" class="hidden w-full max-w-5xl mx-auto space-y-4 animate-fadeIn">
+            <!-- Studio Control Header -->
+            <div class="flex flex-wrap items-center justify-between bg-black/60 backdrop-blur-xl p-3 sm:p-4 rounded-2xl border border-white/15 gap-3">
+                <div class="space-y-0.5">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
+                        <h2 class="text-base sm:text-lg font-bold text-white font-heading" id="activeFrameTitle">Sesi Pemotretan</h2>
+                    </div>
+                    <p class="text-xs text-zinc-300 font-medium">Foto <span id="currentShotIndex" class="font-bold text-white">1</span> dari <span id="totalShotsCount">4</span> • <span id="poseHintText" class="text-white font-bold">Siap-siap berpose!</span></p>
+                </div>
+
+                <!-- Camera Options & Device Selection -->
+                <div class="flex items-center space-x-2 text-xs">
+                    <!-- Dropdown Kamera Rill -->
+                    <select id="cameraDeviceSelect" onchange="switchCameraDevice(this.value)" class="bg-black border border-white/25 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-white max-w-[160px] sm:max-w-[200px]">
+                        <option value="default">Mencari Kamera...</option>
+                    </select>
+
+                    <!-- Mirror Toggle -->
+                    <button onclick="toggleMirrorMode()" id="mirrorToggleBtn" title="Balik Cermin Kamera" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 transition">
+                        <i class="fa-solid fa-arrows-left-right text-xs"></i>
+                    </button>
+
+                    <!-- Grid Guide Toggle -->
+                    <button onclick="toggleGridGuide()" id="gridGuideBtn" title="Garis Bantu Posisi" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 transition">
+                        <i class="fa-solid fa-table-cells text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Viewport Kamera Live & Countdown -->
+            <div class="relative w-full aspect-[4/3] sm:aspect-[16/10] max-h-[65vh] bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/20 flex items-center justify-center">
+                <!-- Elemen Video Kamera Riil -->
+                <video id="liveVideo" autoplay playsinline muted class="w-full h-full object-cover mirror-video"></video>
+
+                <!-- Grid Guide Overlay -->
+                <div id="gridGuideOverlay" class="absolute inset-0 grid-guide pointer-events-none hidden"></div>
+
+                <!-- Countdown Big Number Overlay -->
+                <div id="countdownOverlay" class="absolute inset-0 bg-black/60 backdrop-blur-[2px] hidden flex flex-col items-center justify-center pointer-events-none">
+                    <span id="countdownNumber" class="text-9xl sm:text-[14rem] font-black text-white drop-shadow-[0_15px_35px_rgba(255,255,255,0.6)] font-heading animate-pulse">3</span>
+                    <span id="countdownTip" class="text-sm sm:text-base font-bold text-black bg-white px-4 py-1 rounded-full shadow-lg mt-2 uppercase tracking-wide">Tersenyum ke kamera!</span>
+                </div>
+
+                <!-- Simulation Fallback jika kamera tidak diizinkan / tidak ada -->
+                <div id="simulatedCamNotice" class="absolute inset-0 bg-gradient-to-br from-neutral-950 via-zinc-950 to-black hidden flex flex-col items-center justify-center text-center p-6 space-y-4">
+                    <div class="w-20 h-20 rounded-full bg-white/10 border border-white/30 flex items-center justify-center text-white text-3xl animate-bounce">
+                        <i class="fa-solid fa-camera"></i>
+                    </div>
+                    <div class="space-y-1">
+                        <h3 class="font-bold text-white text-lg">Mode Studio Simulasi Aktif</h3>
+                        <p class="text-xs text-zinc-300 max-w-sm">Kamera fisik tidak terdeteksi atau izin belum diberikan. Foto studio simulasi otomatis akan dihasilkan saat tombol ditekan.</p>
+                    </div>
+                </div>
+
+                <!-- Mini Photo Slot Tracker (Kanan Atas) -->
+                <div id="miniSlotIndicator" class="absolute top-4 right-4 bg-black/80 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/20 flex items-center space-x-2">
+                    <!-- Dinamis -->
+                </div>
+
+                <!-- Retake Warning Badge (Jika Sedang Retake) -->
+                <div id="retakeBadge" class="hidden absolute top-4 left-4 bg-white text-black font-extrabold text-xs px-3 py-1.5 rounded-xl flex items-center space-x-1.5 shadow-lg uppercase tracking-wide">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span>Mode Ambil Ulang</span>
+                </div>
+            </div>
+
+            <!-- Tombol Shutter Utama (Monochrome High Contrast) -->
+            <div class="flex justify-center pt-2">
+                <button onclick="startPhotoCountdown()" id="captureBtn" class="px-12 py-4 bg-white text-black hover:bg-zinc-200 active:scale-95 text-lg font-black rounded-2xl shadow-2xl shadow-white/20 transition-all duration-200 flex items-center justify-center space-x-3 tracking-wide">
+                    <i class="fa-solid fa-circle-dot text-xl animate-pulse"></i>
+                    <span id="captureBtnText">AMBIL FOTO (HITUNG 3 DETIK)</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- 4. REVIEW & RETAKE FOTO -->
+        <!-- ============================================== -->
+        <section id="screenReview" class="hidden w-full max-w-5xl mx-auto space-y-6 animate-fadeIn">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-zinc-400">Langkah 2 dari 3</span>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white font-heading">Periksa Hasil Foto</h2>
+                    <p class="text-xs sm:text-sm text-zinc-300">Ada foto yang kurang pas atau berkedip? Kamu bisa ambil ulang foto tertentu secara instan!</p>
+                </div>
+                <div class="flex space-x-3">
+                    <button onclick="renderFinalAndOutput()" class="px-7 py-3.5 bg-white text-black hover:bg-zinc-200 font-black rounded-2xl shadow-lg shadow-white/20 hover:scale-105 transition flex items-center space-x-2 text-sm tracking-wide">
+                        <span>Lanjut ke Hasil & Cetak</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Grid Foto yang Telah Diambil -->
+            <div id="reviewGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <!-- Terisi otomatis -->
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- 5. LAYAR HASIL AKHIR: REAL QR CODE & REAL PRINT -->
+        <!-- ============================================== -->
+        <section id="screenOutput" class="hidden w-full max-w-5xl mx-auto space-y-6 animate-fadeIn">
+            <div class="text-center space-y-1">
+                <span class="text-xs font-black uppercase tracking-widest text-white bg-white/10 px-3.5 py-1 rounded-full border border-white/20">✨ Sesi Selesai • Hasil Siap!</span>
+                <h2 class="text-3xl sm:text-4xl font-black text-white font-heading tracking-wide">Foto AM Street Photobooth Kamu Siap!</h2>
+                <p class="text-xs sm:text-sm text-zinc-300">Scan QR Code dengan kamera smartphone kamu atau cetak langsung ke printer booth.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-center bg-black/60 backdrop-blur-xl border border-white/15 p-6 sm:p-8 rounded-3xl shadow-2xl">
+                <!-- Preview Kolase Gambar Akhir -->
+                <div class="md:col-span-5 flex flex-col items-center justify-center space-y-3">
+                    <div class="relative bg-neutral-900 p-2 rounded-2xl shadow-2xl border border-white/20 max-h-[62vh] flex items-center justify-center">
+                        <img id="finalRenderImg" src="" alt="Final Collage" class="max-h-[58vh] object-contain rounded-xl shadow-lg">
+                    </div>
+                    <span class="text-[11px] text-zinc-400">Resolusi HD 300 DPI siap cetak & simpan</span>
+                </div>
+
+                <!-- Bagian QR Code Nyata & Cetak Riil -->
+                <div class="md:col-span-7 space-y-5">
+                    <!-- Kotak QR Code Riil -->
+                    <div class="bg-white/5 border border-white/15 p-5 rounded-2xl flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-5 backdrop-blur-md">
+                        <!-- Kontainer QR Code Dinamis -->
+                        <div id="qrcodeBox" class="bg-white p-3 rounded-2xl shadow-xl shrink-0 flex items-center justify-center min-w-[130px] min-h-[130px]">
+                            <!-- QRCode.js merender kanvas di sini -->
+                        </div>
+                        <div class="space-y-2 text-center sm:text-left">
+                            <div class="flex items-center justify-center sm:justify-start space-x-1.5 text-white font-extrabold text-xs uppercase tracking-wider">
+                                <i class="fa-solid fa-mobile-screen"></i>
+                                <span>Scan Langsung dari HP</span>
+                            </div>
+                            <h3 class="font-black text-white text-base font-heading">Unduh Langsung ke Galeri Smartphone</h3>
+                            <p class="text-[11px] text-zinc-300 leading-relaxed">
+                                Arahkan kamera smartphone ke QR Code di samping untuk membuka tautan download foto full-res langsung ke galeri HP!
+                            </p>
+                            <p id="qrUrlDisplay" class="text-[10px] text-zinc-400 font-mono truncate max-w-xs"></p>
+                        </div>
+                    </div>
+
+                    <!-- Tombol Download File Riil (Browser Download) & Print -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button onclick="realDownloadPhoto()" class="w-full py-4 bg-white text-black hover:bg-zinc-200 font-black rounded-2xl shadow-xl shadow-white/10 transition flex items-center justify-center space-x-2 text-sm tracking-wide">
+                            <i class="fa-solid fa-cloud-arrow-down text-lg"></i>
+                            <span>Simpan File (.JPG)</span>
+                        </button>
+
+                        <!-- Tombol Direct Print Riil (Window Print / Thermal) -->
+                        <button onclick="realPrintPhoto()" class="w-full py-4 bg-zinc-900 hover:bg-zinc-800 text-white border border-white/30 font-black rounded-2xl shadow-xl transition flex items-center justify-center space-x-2 text-sm tracking-wide">
+                            <i class="fa-solid fa-print text-lg"></i>
+                            <span>Cetak Foto (Printer)</span>
+                        </button>
+                    </div>
+
+                    <!-- Reset & Sesi Baru -->
+                    <div class="pt-4 border-t border-white/15 flex items-center justify-between">
+                        <span class="text-xs text-zinc-400">Siap untuk sesi berikutnya?</span>
+                        <button onclick="resetPhotoboothSession()" class="px-5 py-2.5 bg-white/10 hover:bg-white hover:text-black text-white font-bold rounded-xl text-xs transition flex items-center space-x-2 border border-white/20">
+                            <i class="fa-solid fa-arrow-rotate-left"></i>
+                            <span>Selesai & Sesi Baru</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Floating Custom Background Button di Ujung Bawah Kanan -->
+    <div id="floatingBgContainer" class="fixed bottom-6 right-6 z-40">
+        <!-- Panel Pengaturan Background (Muncul melayang di atas tombol) -->
+        <div id="bgSettingsPanel" class="hidden absolute bottom-14 right-0 w-80 sm:w-96 bg-black/95 backdrop-blur-2xl border border-white/25 p-5 rounded-3xl shadow-2xl space-y-4 text-left animate-fadeIn">
+            <div class="flex justify-between items-center pb-2 border-b border-white/15">
+                <h3 class="font-bold text-white text-xs flex items-center space-x-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-white"></i>
+                    <span>Tema Latar Belakang Layar</span>
+                </h3>
+                <button onclick="toggleBgSettings()" class="text-zinc-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+            
+            <!-- Preset Pilihan Warna Monochrome -->
+            <div class="space-y-1.5">
+                <label class="text-[10px] font-semibold text-zinc-300">Preset Nuansa Hitam & Putih:</label>
+                <div class="grid grid-cols-4 gap-2">
+                    <button onclick="setCustomBg('street-black')" class="h-10 rounded-xl bg-gradient-to-br from-black via-zinc-950 to-neutral-950 border-2 border-white shadow hover:scale-105 transition" title="Pure Street Black"></button>
+                    <button onclick="setCustomBg('charcoal-noir')" class="h-10 rounded-xl bg-gradient-to-tr from-neutral-900 via-zinc-900 to-black border-2 border-transparent hover:border-white/40 shadow hover:scale-105 transition" title="Charcoal Noir"></button>
+                    <button onclick="setCustomBg('deep-slate')" class="h-10 rounded-xl bg-gradient-to-br from-slate-900 via-zinc-900 to-black border-2 border-transparent hover:border-white/40 shadow hover:scale-105 transition" title="Deep Slate"></button>
+                    <button onclick="setCustomBg('solid-black')" class="h-10 rounded-xl bg-black border-2 border-transparent hover:border-white/40 shadow hover:scale-105 transition" title="Solid Matte Black"></button>
+                </div>
+            </div>
+
+            <!-- Upload Background Gambar Sendiri -->
+            <div class="pt-2 border-t border-white/15 space-y-1.5">
+                <label class="block text-[11px] font-semibold text-zinc-300">Upload Gambar Sendiri (.JPG/.PNG):</label>
+                <input type="file" accept="image/*" onchange="uploadCustomBg(event)" class="w-full text-xs text-zinc-300 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-[11px] file:font-bold file:bg-white file:text-black hover:file:bg-zinc-200 cursor-pointer border border-white/20 rounded-xl p-1 bg-black/80">
+            </div>
+        </div>
+
+        <!-- Tombol Custom Background di Ujung Bawah Kanan -->
+        <button onclick="toggleBgSettings()" class="px-5 py-3 bg-zinc-900/90 hover:bg-zinc-800 text-white font-bold rounded-full border border-white/25 shadow-2xl backdrop-blur-xl transition-all duration-300 flex items-center space-x-2.5 text-xs hover:scale-105 active:scale-95">
+            <i class="fa-solid fa-palette text-white text-sm"></i>
+            <span>Custom Background</span>
+        </button>
+    </div>
+
+    <!-- Modal Upload Frame Baru (.PNG) -->
+    <div id="uploadFrameModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-neutral-950 border border-white/25 p-6 rounded-3xl max-w-md w-full space-y-4 shadow-2xl animate-fadeIn text-left">
+            <div class="flex justify-between items-center pb-2 border-b border-white/15">
+                <h3 class="font-bold text-white text-base flex items-center space-x-2">
+                    <i class="fa-solid fa-image text-white"></i>
+                    <span>Upload Desain Frame Kustom (.PNG)</span>
+                </h3>
+                <button onclick="closeUploadFrameModal()" class="text-zinc-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-300 mb-1">Nama Frame:</label>
+                    <input type="text" id="customFrameNameInput" placeholder="Contoh: AM Street Edition Vol. 1" class="w-full bg-black border border-white/25 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-300 mb-1">Pilih Jenis / Ukuran Layout:</label>
+                    <select id="customFrameTypeInput" class="w-full bg-black border border-white/25 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-white">
+                        <option value="2R_4">Photo Strip 2R (4 Foto Vertikal)</option>
+                        <option value="4R_4">Kolase Grid 4R (4 Foto - 2x2)</option>
+                        <option value="2R_3">Photo Strip 2R (3 Foto Vertikal)</option>
+                        <option value="4R_2">Duo 4R (2 Foto)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-300 mb-1">Pilih File Desain Frame (.PNG Transparan / Overlay):</label>
+                    <input type="file" id="customFrameFileInput" accept="image/png,image/*" class="w-full text-xs text-zinc-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white file:text-black hover:file:bg-zinc-200 cursor-pointer border border-white/20 rounded-xl p-1 bg-black">
+                </div>
+            </div>
+
+            <div class="flex space-x-3 pt-2">
+                <button onclick="closeUploadFrameModal()" class="w-1/2 py-2.5 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl text-xs transition">Batal</button>
+                <button onclick="saveNewCustomFrame()" class="w-1/2 py-2.5 bg-white hover:bg-zinc-200 text-black font-extrabold rounded-xl text-xs transition shadow-lg">Simpan Frame</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Printable Area for Direct Printing -->
+    <div id="printContainer" class="hidden">
+        <img id="printCanvas" src="" alt="Print Output">
+    </div>
+
+    <!-- Hidden Canvas untuk Snapshot & Rendering High-Res -->
+    <canvas id="hiddenSnapshotCanvas" class="hidden"></canvas>
+    <canvas id="exportCanvas" class="hidden"></canvas>
+
+    <!-- Footer -->
+    <footer class="w-full py-3.5 text-center text-[11px] text-zinc-400 border-t border-white/15 bg-black/70 backdrop-blur-md">
+        &copy; 2026 AM Street Photobooth System • Urban Street Edition
+    </footer>
+
+    <!-- Custom Modal Toast -->
+    <div id="customModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-neutral-950 border border-white/25 p-6 rounded-3xl max-w-sm w-full text-center space-y-4 shadow-2xl animate-fadeIn">
+            <div id="modalIcon" class="w-12 h-12 rounded-full bg-white/10 text-white mx-auto flex items-center justify-center text-xl border border-white/20">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <h3 id="modalTitle" class="font-black text-white text-lg font-heading uppercase">Notifikasi</h3>
+            <p id="modalMessage" class="text-xs text-zinc-300 leading-relaxed"></p>
+            <button onclick="closeModal()" class="w-full py-3 bg-white hover:bg-zinc-200 text-black font-black rounded-xl text-xs transition">
+                Mengerti
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript Logika Produksi AM Street Photobooth -->
+    <script>
+        // State Global Aplikasi
+        let currentScreen = 'screenHome';
+        let mediaStream = null;
+        let audioContext = null;
+        let isAudioEnabled = true;
+        let isMirrorMode = true;
+        let isGridGuide = false;
+        let availableVideoDevices = [];
+        let selectedDeviceId = null;
+        let isSimulatedCamera = false;
+
+        // Data Sesi Aktif
+        let selectedFrame = null;
+        let capturedPhotos = [];
+        let currentRetakeIndex = null;
+
+        // Daftar Template Frame
+        let framesData = [
+            {
+                id: 'strip_4_2r',
+                name: 'AM Street Strip 2R (4 Strip)',
+                size: '2R',
+                slots: 4,
+                width: 600,
+                height: 1800,
+                badge: 'Urban Street',
+                desc: 'Format strip vertikal 4 foto bernuansa street hitam putih.',
+                overlayImg: null
+            },
+            {
+                id: 'grid_4_4r',
+                name: 'AM Street Grid 4R (2x2)',
+                size: '4R',
+                slots: 4,
+                width: 1200,
+                height: 1800,
+                badge: 'Format Standar',
+                desc: 'Kolase 2x2 pas untuk dicetak ukuran foto 4R.',
+                overlayImg: null
+            },
+            {
+                id: 'strip_3_2r',
+                name: 'AM Wide Trio Strip (3 Foto)',
+                size: '2R',
+                slots: 3,
+                width: 600,
+                height: 1800,
+                badge: 'Aesthetic Wide',
+                desc: 'Format vertikal 3 foto dengan sudut tangkapan lebih luas.',
+                overlayImg: null
+            },
+            {
+                id: 'polaroid_2_4r',
+                name: 'AM Minimalist Duo 4R',
+                size: '4R',
+                slots: 2,
+                width: 1200,
+                height: 1800,
+                badge: 'Minimalist Duo',
+                desc: '2 foto dengan ruang bawah besar untuk coretan kenangan.',
+                overlayImg: null
+            }
+        ];
+
+        // Pose prompts for each shot
+        const poseSuggestions = [
+            "Pose 1: Senyum Santai & Street Style! 🕶️",
+            "Pose 2: Peace Sign atau Gaya Candid Keren! ✌️✨",
+            "Pose 3: Tatap Kamera atau Gaya Profil! 📸",
+            "Pose 4: Gaya Bebas & Spontan! 🎉"
+        ];
+
+        // ==========================================
+        // 1. Web Audio Synthesizer
+        // ==========================================
+        function initAudio() {
+            if (!audioContext) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) audioContext = new AudioCtx();
+            }
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+
+        function playBeep(freq = 800, duration = 0.12) {
+            if (!isAudioEnabled) return;
+            initAudio();
+            if (!audioContext) return;
+
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+
+            gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+
+            osc.start();
+            osc.stop(audioContext.currentTime + duration);
+        }
+
+        function playShutterSound() {
+            if (!isAudioEnabled) return;
+            initAudio();
+            if (!audioContext) return;
+
+            const now = audioContext.currentTime;
+
+            // Click
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(320, now);
+            osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
+
+            gain.gain.setValueAtTime(0.6, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.start(now);
+            osc.stop(now + 0.08);
+
+            // Shutter noise
+            const bufferSize = audioContext.sampleRate * 0.05;
+            const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            const noise = audioContext.createBufferSource();
+            noise.buffer = buffer;
+            const noiseFilter = audioContext.createBiquadFilter();
+            noiseFilter.type = 'bandpass';
+            noiseFilter.frequency.value = 1200;
+
+            const noiseGain = audioContext.createGain();
+            noiseGain.gain.setValueAtTime(0.4, now + 0.03);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+
+            noise.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(audioContext.destination);
+            noise.start(now + 0.03);
+        }
+
+        function toggleAudio() {
+            isAudioEnabled = !isAudioEnabled;
+            const icon = document.getElementById('audioIcon');
+            const text = document.getElementById('audioText');
+            if (isAudioEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-white';
+                text.innerText = 'Suara Aktif';
+                playBeep(1000, 0.1);
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-zinc-500';
+                text.innerText = 'Bisu';
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+                document.getElementById('fullscreenIcon').className = 'fa-solid fa-compress text-white';
+            } else {
+                document.exitFullscreen().catch(() => {});
+                document.getElementById('fullscreenIcon').className = 'fa-solid fa-expand text-white';
+            }
+        }
+
+        // ==========================================
+        // 2. Custom Background Settings (Monochrome)
+        // ==========================================
+        function toggleBgSettings() {
+            const panel = document.getElementById('bgSettingsPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function setCustomBg(type) {
+            const body = document.getElementById('bodyContainer');
+            body.style.backgroundImage = 'none';
+
+            if (type === 'street-black') {
+                body.className = "bg-gradient-to-br from-black via-zinc-950 to-neutral-950 min-h-screen text-slate-100 flex flex-col justify-between overflow-x-hidden selection:bg-white selection:text-black bg-cover bg-center";
+            } else if (type === 'charcoal-noir') {
+                body.className = "bg-gradient-to-tr from-neutral-900 via-zinc-900 to-black min-h-screen text-slate-100 flex flex-col justify-between overflow-x-hidden selection:bg-white selection:text-black bg-cover bg-center";
+            } else if (type === 'deep-slate') {
+                body.className = "bg-gradient-to-br from-slate-900 via-zinc-900 to-black min-h-screen text-slate-100 flex flex-col justify-between overflow-x-hidden selection:bg-white selection:text-black bg-cover bg-center";
+            } else if (type === 'solid-black') {
+                body.className = "bg-black min-h-screen text-slate-100 flex flex-col justify-between overflow-x-hidden selection:bg-white selection:text-black bg-cover bg-center";
+            }
+            showModal('Tema Diterapkan', 'Latar belakang layar berhasil diubah!');
+        }
+
+        function uploadCustomBg(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                const body = document.getElementById('bodyContainer');
+                body.style.backgroundImage = `url('${url}')`;
+                body.style.backgroundSize = 'cover';
+                body.style.backgroundPosition = 'center';
+                showModal('Background Kustom', 'Gambar background berhasil dipasang pada sistem booth!');
+            }
+        }
+
+        // ==========================================
+        // 3. Navigasi Screen Management
+        // ==========================================
+        function goToScreen(screenId) {
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            const target = document.getElementById(screenId);
+            if (target) {
+                target.classList.remove('hidden');
+                currentScreen = screenId;
+            }
+
+            const sessionIndicator = document.getElementById('sessionIndicator');
+            const floatingBg = document.getElementById('floatingBgContainer');
+
+            if (screenId === 'screenHome') {
+                sessionIndicator.classList.add('hidden');
+                if (floatingBg) floatingBg.classList.remove('hidden');
+                stopCameraStream();
+            } else {
+                sessionIndicator.classList.remove('hidden');
+                sessionIndicator.classList.add('flex');
+                if (floatingBg) {
+                    floatingBg.classList.add('hidden');
+                    const panel = document.getElementById('bgSettingsPanel');
+                    if (panel) panel.classList.add('hidden');
+                }
+            }
+
+            if (screenId === 'screenFrames') {
+                renderFramesGrid();
+            } else if (screenId === 'screenCapture') {
+                initCameraCapture();
+            } else if (screenId === 'screenReview') {
+                renderReviewGrid();
+            }
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ==========================================
+        // 4. Template Selection & Custom Frame Upload
+        // ==========================================
+        let activeCategoryFilter = 'all';
+
+        function renderFramesGrid() {
+            const grid = document.getElementById('frameGrid');
+            grid.innerHTML = '';
+
+            const list = framesData.filter(f => activeCategoryFilter === 'all' || f.size === activeCategoryFilter);
+
+            list.forEach(frame => {
+                const card = document.createElement('div');
+                const isSelected = selectedFrame && selectedFrame.id === frame.id;
+                card.className = `bg-black/60 backdrop-blur-xl border ${isSelected ? 'border-white ring-2 ring-white/50 shadow-white/20' : 'border-white/15'} p-5 rounded-3xl space-y-4 hover:border-white transition-all cursor-pointer flex flex-col justify-between shadow-xl group hover:scale-[1.02]`;
+                card.onclick = () => selectFrameTemplate(frame);
+
+                // Miniature visual preview (Monochrome Style)
+                let miniPreviewHtml = '';
+                if (frame.overlayImg) {
+                    miniPreviewHtml = `
+                        <div class="w-20 h-32 rounded-lg border border-white/40 overflow-hidden shadow-md bg-neutral-900 flex items-center justify-center p-1">
+                            <img src="${frame.overlayImg}" class="max-w-full max-h-full object-contain">
+                        </div>
+                    `;
+                } else if (frame.id === 'strip_4_2r') {
+                    miniPreviewHtml = `
+                        <div class="w-16 h-36 bg-white p-1 rounded-md shadow-md flex flex-col space-y-1 justify-between">
+                            <div class="h-6 bg-zinc-200 rounded-sm"></div>
+                            <div class="h-6 bg-zinc-200 rounded-sm"></div>
+                            <div class="h-6 bg-zinc-200 rounded-sm"></div>
+                            <div class="h-6 bg-zinc-200 rounded-sm"></div>
+                            <div class="h-2 bg-zinc-800 rounded-sm"></div>
+                        </div>
+                    `;
+                } else if (frame.id === 'grid_4_4r') {
+                    miniPreviewHtml = `
+                        <div class="w-24 h-32 bg-white p-1.5 rounded-md shadow-md flex flex-col justify-between">
+                            <div class="grid grid-cols-2 gap-1">
+                                <div class="h-10 bg-zinc-200 rounded-sm"></div>
+                                <div class="h-10 bg-zinc-200 rounded-sm"></div>
+                                <div class="h-10 bg-zinc-200 rounded-sm"></div>
+                                <div class="h-10 bg-zinc-200 rounded-sm"></div>
+                            </div>
+                            <div class="h-2.5 bg-zinc-800 rounded-sm mt-1"></div>
+                        </div>
+                    `;
+                } else if (frame.id === 'strip_3_2r') {
+                    miniPreviewHtml = `
+                        <div class="w-16 h-36 bg-white p-1 rounded-md shadow-md flex flex-col space-y-1.5 justify-between">
+                            <div class="h-8 bg-zinc-200 rounded-sm"></div>
+                            <div class="h-8 bg-zinc-200 rounded-sm"></div>
+                            <div class="h-8 bg-zinc-200 rounded-sm"></div>
+                            <div class="h-2 bg-zinc-800 rounded-sm"></div>
+                        </div>
+                    `;
+                } else {
+                    miniPreviewHtml = `
+                        <div class="w-24 h-32 bg-white p-1.5 rounded-md shadow-md flex flex-col justify-between">
+                            <div class="h-12 bg-zinc-200 rounded-sm mb-1"></div>
+                            <div class="h-12 bg-zinc-200 rounded-sm"></div>
+                            <div class="h-4 bg-zinc-800 rounded-sm mt-1"></div>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-black px-2.5 py-1 rounded-full bg-white/10 text-white border border-white/20">${frame.size} • ${frame.slots} Foto</span>
+                        <span class="text-[10px] text-zinc-300 font-bold bg-white/10 px-2 py-0.5 rounded-md">${frame.badge}</span>
+                    </div>
+
+                    <div class="py-4 flex justify-center items-center">
+                        ${miniPreviewHtml}
+                    </div>
+
+                    <div class="space-y-1 text-left">
+                        <h3 class="font-black text-white text-sm group-hover:text-zinc-200 transition">${frame.name}</h3>
+                        <p class="text-[11px] text-zinc-400 line-clamp-2">${frame.desc}</p>
+                    </div>
+
+                    <button class="w-full mt-2 py-2.5 rounded-xl bg-white/10 group-hover:bg-white group-hover:text-black text-white font-bold text-xs transition">
+                        Pilih Template Ini
+                    </button>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        function filterFrames(category) {
+            activeCategoryFilter = category;
+            ['all', '2R', '4R'].forEach(c => {
+                const btn = document.getElementById('tab_' + c);
+                if (btn) {
+                    if (c === category) {
+                        btn.className = 'px-4 py-2 bg-white text-black rounded-xl text-xs font-black shadow-lg transition';
+                    } else {
+                        btn.className = 'px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold transition';
+                    }
+                }
+            });
+            renderFramesGrid();
+        }
+
+        function selectFrameTemplate(frame) {
+            selectedFrame = frame;
+            capturedPhotos = new Array(frame.slots).fill(null);
+            currentRetakeIndex = null;
+            goToScreen('screenCapture');
+        }
+
+        // Upload Modal Handlers
+        function openUploadFrameModal() {
+            document.getElementById('uploadFrameModal').classList.remove('hidden');
+        }
+
+        function closeUploadFrameModal() {
+            document.getElementById('uploadFrameModal').classList.add('hidden');
+        }
+
+        function saveNewCustomFrame() {
+            const nameInput = document.getElementById('customFrameNameInput').value.trim();
+            const typeInput = document.getElementById('customFrameTypeInput').value;
+            const fileInput = document.getElementById('customFrameFileInput');
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showModal('Peringatan', 'Silakan pilih berkas gambar frame (.PNG) terlebih dahulu.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                const dataUrl = e.target.result;
+                let size = '4R';
+                let slots = 4;
+                let width = 1200;
+                let height = 1800;
+
+                if (typeInput === '2R_4') {
+                    size = '2R'; slots = 4; width = 600; height = 1800;
+                } else if (typeInput === '4R_4') {
+                    size = '4R'; slots = 4; width = 1200; height = 1800;
+                } else if (typeInput === '2R_3') {
+                    size = '2R'; slots = 3; width = 600; height = 1800;
+                } else if (typeInput === '4R_2') {
+                    size = '4R'; slots = 2; width = 1200; height = 1800;
+                }
+
+                const newFrameObj = {
+                    id: 'custom_' + Date.now(),
+                    name: nameInput || ('AM Custom Frame ' + (framesData.length + 1)),
+                    size: size,
+                    slots: slots,
+                    width: width,
+                    height: height,
+                    badge: 'Custom Upload',
+                    desc: 'Desain frame kustom yang diupload pengguna.',
+                    overlayImg: dataUrl
+                };
+
+                framesData.unshift(newFrameObj);
+                closeUploadFrameModal();
+                renderFramesGrid();
+                showModal('Berhasil', 'Frame kustom baru berhasil ditambahkan dan siap digunakan!');
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        // ==========================================
+        // 5. Real Camera Engine & Capture
+        // ==========================================
+        async function enumerateCameras() {
+            const selectEl = document.getElementById('cameraDeviceSelect');
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                availableVideoDevices = devices.filter(d => d.kind === 'videoinput');
+
+                selectEl.innerHTML = '';
+                if (availableVideoDevices.length === 0) {
+                    selectEl.innerHTML = '<option value="default">Kamera Bawaan</option>';
+                } else {
+                    availableVideoDevices.forEach((device, idx) => {
+                        const opt = document.createElement('option');
+                        opt.value = device.deviceId;
+                        opt.text = device.label || `Kamera ${idx + 1}`;
+                        selectEl.appendChild(opt);
+                    });
+                }
+                const simOpt = document.createElement('option');
+                simOpt.value = 'simulated';
+                simOpt.text = 'Mode Studio Simulasi (Demo)';
+                selectEl.appendChild(simOpt);
+            } catch (e) {
+                selectEl.innerHTML = '<option value="default">Kamera Bawaan</option><option value="simulated">Mode Studio Simulasi</option>';
+            }
+        }
+
+        async function initCameraCapture() {
+            const video = document.getElementById('liveVideo');
+            const simNotice = document.getElementById('simulatedCamNotice');
+            const retakeBadge = document.getElementById('retakeBadge');
+
+            document.getElementById('activeFrameTitle').innerText = selectedFrame ? selectedFrame.name : 'AM Street Photobooth';
+            document.getElementById('totalShotsCount').innerText = selectedFrame ? selectedFrame.slots : 4;
+
+            // Retake or sequence index
+            if (currentRetakeIndex !== null) {
+                document.getElementById('currentShotIndex').innerText = `${currentRetakeIndex + 1} (Ambil Ulang)`;
+                document.getElementById('poseHintText').innerText = 'Fokus dan ambil gaya terbaik untuk foto ini!';
+                retakeBadge.classList.remove('hidden');
+            } else {
+                retakeBadge.classList.add('hidden');
+                const nextIdx = capturedPhotos.findIndex(p => p === null);
+                const shotNumber = nextIdx !== -1 ? nextIdx + 1 : 1;
+                document.getElementById('currentShotIndex').innerText = shotNumber;
+                document.getElementById('poseHintText').innerText = poseSuggestions[shotNumber - 1] || 'Tersenyum santai!';
+            }
+
+            updateMiniSlots();
+            await enumerateCameras();
+
+            if (selectedDeviceId === 'simulated') {
+                enableSimulatedCamera();
+                return;
+            }
+
+            try {
+                stopCameraStream();
+                const constraints = {
+                    video: selectedDeviceId && selectedDeviceId !== 'default'
+                        ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+                        : { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
+                    audio: false
+                };
+
+                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = mediaStream;
+                video.classList.remove('hidden');
+                simNotice.classList.add('hidden');
+                isSimulatedCamera = false;
+            } catch (err) {
+                console.warn('Gagal akses kamera fisik, beralih ke simulasi studio:', err);
+                enableSimulatedCamera();
+            }
+        }
+
+        function enableSimulatedCamera() {
+            const video = document.getElementById('liveVideo');
+            const simNotice = document.getElementById('simulatedCamNotice');
+            stopCameraStream();
+            video.classList.add('hidden');
+            simNotice.classList.remove('hidden');
+            isSimulatedCamera = true;
+        }
+
+        function switchCameraDevice(deviceId) {
+            selectedDeviceId = deviceId;
+            initCameraCapture();
+        }
+
+        function stopCameraStream() {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(t => t.stop());
+                mediaStream = null;
+            }
+        }
+
+        function toggleMirrorMode() {
+            isMirrorMode = !isMirrorMode;
+            const video = document.getElementById('liveVideo');
+            if (isMirrorMode) {
+                video.classList.add('mirror-video');
+                document.getElementById('mirrorToggleBtn').classList.add('bg-white/30');
+            } else {
+                video.classList.remove('mirror-video');
+                document.getElementById('mirrorToggleBtn').classList.remove('bg-white/30');
+            }
+        }
+
+        function toggleGridGuide() {
+            isGridGuide = !isGridGuide;
+            const overlay = document.getElementById('gridGuideOverlay');
+            if (isGridGuide) {
+                overlay.classList.remove('hidden');
+                document.getElementById('gridGuideBtn').classList.add('bg-white/30');
+            } else {
+                overlay.classList.add('hidden');
+                document.getElementById('gridGuideBtn').classList.remove('bg-white/30');
+            }
+        }
+
+        function updateMiniSlots() {
+            const container = document.getElementById('miniSlotIndicator');
+            container.innerHTML = '';
+            const total = selectedFrame ? selectedFrame.slots : 4;
+            for (let i = 0; i < total; i++) {
+                const dot = document.createElement('div');
+                const isFilled = capturedPhotos[i] !== null;
+                const isCurrent = (currentRetakeIndex !== null && currentRetakeIndex === i) || (currentRetakeIndex === null && capturedPhotos.findIndex(p => p === null) === i);
+                dot.className = `w-3 h-3 rounded-full transition-all ${isFilled ? 'bg-white scale-100 shadow-sm shadow-white' : 'bg-white/20'} ${isCurrent ? 'ring-2 ring-white scale-125' : ''}`;
+                container.appendChild(dot);
+            }
+        }
+
+        // ==========================================
+        // 6. Countdown & Shutter Execution
+        // ==========================================
+        let isCountingDown = false;
+
+        function startPhotoCountdown() {
+            if (isCountingDown) return;
+            isCountingDown = true;
+
+            const countdownOverlay = document.getElementById('countdownOverlay');
+            const countdownNumber = document.getElementById('countdownNumber');
+            const captureBtn = document.getElementById('captureBtn');
+
+            captureBtn.disabled = true;
+            captureBtn.classList.add('opacity-50');
+            countdownOverlay.classList.remove('hidden');
+
+            let count = 3;
+            countdownNumber.innerText = count;
+            playBeep(800, 0.15);
+
+            const timer = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownNumber.innerText = count;
+                    playBeep(800, 0.15);
+                } else {
+                    clearInterval(timer);
+                    playBeep(1200, 0.2);
+                    setTimeout(() => {
+                        countdownOverlay.classList.add('hidden');
+                        executeCameraSnap();
+                        isCountingDown = false;
+                        captureBtn.disabled = false;
+                        captureBtn.classList.remove('opacity-50');
+                    }, 300);
+                }
+            }, 1000);
+        }
+
+        function executeCameraSnap() {
+            // Shutter Sound & Flash
+            playShutterSound();
+
+            const flash = document.getElementById('flashOverlay');
+            flash.classList.add('flash-active');
+            setTimeout(() => {
+                flash.classList.remove('flash-active');
+            }, 100);
+
+            // Snapshot to Canvas
+            const video = document.getElementById('liveVideo');
+            const canvas = document.getElementById('hiddenSnapshotCanvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = 1280;
+            canvas.height = 960;
+
+            if (!isSimulatedCamera && video.srcObject && video.videoWidth > 0) {
+                ctx.save();
+                if (isMirrorMode) {
+                    ctx.translate(canvas.width, 0);
+                    ctx.scale(-1, 1);
+                }
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                ctx.restore();
+            } else {
+                renderSimulatedStudioShot(ctx, canvas.width, canvas.height);
+            }
+
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+
+            if (currentRetakeIndex !== null) {
+                capturedPhotos[currentRetakeIndex] = dataUrl;
+                currentRetakeIndex = null;
+                goToScreen('screenReview');
+            } else {
+                const emptyIdx = capturedPhotos.findIndex(p => p === null);
+                if (emptyIdx !== -1) {
+                    capturedPhotos[emptyIdx] = dataUrl;
+                }
+
+                if (capturedPhotos.every(p => p !== null)) {
+                    stopCameraStream();
+                    goToScreen('screenReview');
+                } else {
+                    initCameraCapture();
+                }
+            }
+        }
+
+        function renderSimulatedStudioShot(ctx, w, h) {
+            // Monochrome gradient background
+            const grad = ctx.createLinearGradient(0, 0, w, h);
+            grad.addColorStop(0, '#18181b');
+            grad.addColorStop(1, '#09090b');
+
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+
+            // Studio circle
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+            ctx.beginPath();
+            ctx.arc(w/2, h/2 - 40, 220, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Silhouette
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(w/2, h/2 - 70, 75, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.ellipse(w/2, h/2 + 120, 140, 90, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Watermark
+            const shotNum = (currentRetakeIndex !== null ? currentRetakeIndex : capturedPhotos.filter(p => p !== null).length) + 1;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.font = 'bold 36px Outfit, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`AM Street Shot #${shotNum}`, w/2, h - 80);
+
+            ctx.font = '500 22px Plus Jakarta Sans, sans-serif';
+            ctx.fillText(new Date().toLocaleTimeString('id-ID'), w/2, h - 45);
+        }
+
+        // ==========================================
+        // 7. Review & Retake Screen
+        // ==========================================
+        function renderReviewGrid() {
+            const grid = document.getElementById('reviewGrid');
+            grid.innerHTML = '';
+
+            capturedPhotos.forEach((photo, idx) => {
+                const card = document.createElement('div');
+                card.className = 'bg-black/60 backdrop-blur-xl border border-white/15 p-3.5 rounded-2xl space-y-3 text-center shadow-xl flex flex-col justify-between';
+                card.innerHTML = `
+                    <div class="relative aspect-[4/3] rounded-xl overflow-hidden bg-neutral-900 shadow border border-white/15 group">
+                        <img src="${photo}" class="w-full h-full object-cover">
+                        <span class="absolute top-2 left-2 bg-white text-black text-[11px] px-2 py-0.5 rounded-md font-black shadow">
+                            Foto #${idx + 1}
+                        </span>
+                    </div>
+
+                    <button onclick="retakeSpecificPhoto(${idx})" class="w-full py-2.5 bg-white/10 hover:bg-white hover:text-black text-white text-xs font-bold rounded-xl transition flex items-center justify-center space-x-1.5 border border-white/20">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span>Ambil Ulang Foto #${idx + 1}</span>
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function retakeSpecificPhoto(index) {
+            currentRetakeIndex = index;
+            goToScreen('screenCapture');
+        }
+
+        // ==========================================
+        // 8. Core High-Res Collage Rendering (Hitam & Putih Identity)
+        // ==========================================
+        let finalImageBase64 = null;
+        let currentPhotoId = null;
+
+        async function renderFinalAndOutput() {
+            goToScreen('screenOutput');
+
+            const exportCanvas = document.getElementById('exportCanvas');
+            exportCanvas.width = selectedFrame.width;
+            exportCanvas.height = selectedFrame.height;
+            const ctx = exportCanvas.getContext('2d');
+
+            await drawCollageOnCanvas(ctx, exportCanvas.width, exportCanvas.height);
+
+            finalImageBase64 = exportCanvas.toDataURL('image/jpeg', 0.96);
+
+            const finalRenderImg = document.getElementById('finalRenderImg');
+            finalRenderImg.src = finalImageBase64;
+
+            const printImg = document.getElementById('printCanvas');
+            printImg.src = finalImageBase64;
+
+            // Auto-save to server & real QR Code
+            try {
+                const res = await fetch('/api/save-photo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        image: finalImageBase64,
+                        frameType: selectedFrame.size
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    currentPhotoId = data.id;
+                    generateRealQRCode(data.downloadUrl);
+                    document.getElementById('qrUrlDisplay').innerText = data.downloadUrl;
+                } else {
+                    fallbackLocalQR();
+                }
+            } catch (err) {
+                console.warn('Gagal simpan ke server lokal, fallback QR:', err);
+                fallbackLocalQR();
+            }
+        }
+
+        function drawCollageOnCanvas(ctx, W, H) {
+            return new Promise((resolve) => {
+                // Background frame (Clean White)
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, W, H);
+
+                const is2R = selectedFrame && selectedFrame.size === '2R';
+                const slots = selectedFrame ? selectedFrame.slots : 4;
+
+                const marginX = is2R ? 36 : 48;
+                const marginTop = 48;
+                const marginBottom = is2R ? 130 : 150;
+                const availableHeight = H - marginTop - marginBottom;
+
+                let loadedCount = 0;
+                const imgElements = capturedPhotos.map(src => {
+                    const img = new Image();
+                    img.src = src;
+                    img.onload = () => {
+                        loadedCount++;
+                        if (loadedCount === capturedPhotos.length) {
+                            drawAllContent();
+                        }
+                    };
+                    return img;
+                });
+
+                function drawAllContent() {
+                    if (is2R) {
+                        const gap = 18;
+                        const totalGaps = gap * (slots - 1);
+                        const photoH = (availableHeight - totalGaps) / slots;
+                        const photoW = W - (marginX * 2);
+
+                        for (let i = 0; i < slots; i++) {
+                            const y = marginTop + (i * (photoH + gap));
+                            drawCoverImage(ctx, imgElements[i], marginX, y, photoW, photoH);
+                        }
+                    } else {
+                        if (slots === 4) {
+                            const gap = 24;
+                            const photoW = (W - (marginX * 2) - gap) / 2;
+                            const photoH = (availableHeight - gap) / 2;
+
+                            drawCoverImage(ctx, imgElements[0], marginX, marginTop, photoW, photoH);
+                            drawCoverImage(ctx, imgElements[1], marginX + photoW + gap, marginTop, photoW, photoH);
+                            drawCoverImage(ctx, imgElements[2], marginX, marginTop + photoH + gap, photoW, photoH);
+                            drawCoverImage(ctx, imgElements[3], marginX + photoW + gap, marginTop + photoH + gap, photoW, photoH);
+                        } else if (slots === 2) {
+                            const gap = 30;
+                            const photoH = (availableHeight - gap) / 2;
+                            const photoW = W - (marginX * 2);
+
+                            drawCoverImage(ctx, imgElements[0], marginX, marginTop, photoW, photoH);
+                            drawCoverImage(ctx, imgElements[1], marginX + photoH + gap, photoW, photoH);
+                        }
+                    }
+
+                    // If custom overlay frame image exists, draw it on top!
+                    if (selectedFrame.overlayImg) {
+                        const overlay = new Image();
+                        overlay.src = selectedFrame.overlayImg;
+                        overlay.onload = () => {
+                            ctx.drawImage(overlay, 0, 0, W, H);
+                            resolve();
+                        };
+                        overlay.onerror = () => {
+                            drawDefaultFooter(ctx, W, H, is2R);
+                            resolve();
+                        };
+                    } else {
+                        drawDefaultFooter(ctx, W, H, is2R);
+                        resolve();
+                    }
+                }
+            });
+        }
+
+        function drawDefaultFooter(ctx, W, H, is2R) {
+            ctx.fillStyle = '#000000';
+            ctx.font = `900 ${is2R ? '26px' : '32px'} Outfit, sans-serif`;
+            ctx.textAlign = 'center';
+            const textY = H - (is2R ? 70 : 80);
+            ctx.fillText('AM STREET PHOTOBOOTH', W / 2, textY);
+
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.font = `600 ${is2R ? '14px' : '18px'} Plus Jakarta Sans, sans-serif`;
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' }) + ' • ' + today.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            ctx.fillText(dateStr, W / 2, textY + (is2R ? 26 : 30));
+
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.font = `900 ${is2R ? '10px' : '12px'} Outfit, sans-serif`;
+            ctx.fillText('URBAN STREET PHOTOBOOTH SYSTEM', W / 2, H - 18);
+        }
+
+        function drawCoverImage(ctx, img, x, y, w, h) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 14);
+            ctx.clip();
+
+            if (img && img.naturalWidth > 0) {
+                const imgRatio = img.naturalWidth / img.naturalHeight;
+                const slotRatio = w / h;
+                let dw = w;
+                let dh = h;
+                let dx = x;
+                let dy = y;
+
+                if (imgRatio > slotRatio) {
+                    dw = h * imgRatio;
+                    dx = x - (dw - w) / 2;
+                } else {
+                    dh = w / imgRatio;
+                    dy = y - (dh - h) / 2;
+                }
+                ctx.drawImage(img, dx, dy, dw, dh);
+            } else {
+                ctx.fillStyle = '#f4f4f5';
+                ctx.fillRect(x, y, w, h);
+            }
+            ctx.restore();
+        }
+
+        // ==========================================
+        // 9. Real Download & Print Actions
+        // ==========================================
+        function generateRealQRCode(url) {
+            const qrcodeBox = document.getElementById('qrcodeBox');
+            qrcodeBox.innerHTML = '';
+            new QRCode(qrcodeBox, {
+                text: url,
+                width: 140,
+                height: 140,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+
+        function fallbackLocalQR() {
+            const downloadUrl = `${window.location.origin}/download.html?id=demo`;
+            generateRealQRCode(downloadUrl);
+            document.getElementById('qrUrlDisplay').innerText = downloadUrl;
+        }
+
+        function realDownloadPhoto() {
+            if (!finalImageBase64) return;
+            const a = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            a.download = `AM_Street_${selectedFrame ? selectedFrame.size : '4R'}_${timestamp}.jpg`;
+            a.href = finalImageBase64;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showModal('Unduhan Dimulai', 'File foto resolusi tinggi sedang diunduh ke folder Downloads Anda!');
+        }
+
+        function realPrintPhoto() {
+            if (!finalImageBase64) return;
+            window.print();
+        }
+
+        function resetPhotoboothSession() {
+            selectedFrame = null;
+            capturedPhotos = [];
+            currentRetakeIndex = null;
+            goToScreen('screenHome');
+        }
+
+        // Modal Notifikasi Helper
+        function showModal(title, msg) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalMessage').innerText = msg;
+            document.getElementById('customModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('customModal').classList.add('hidden');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderFramesGrid();
+        });
+    </script>
+</body>
+</html>
